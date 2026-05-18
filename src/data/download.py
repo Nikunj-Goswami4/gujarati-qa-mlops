@@ -1,11 +1,15 @@
 from datasets import load_dataset
 import pandas as pd
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+os.environ["HF_TOKEN"] = os.getenv("HF_TOKEN")
 
 def download_indicqa():
     """Download IndicQA dataset — has Gujarati QA pairs"""
     print("Downloading IndicQA (Gujarati)...")
-    dataset = load_dataset("ai4bharat/IndicQA", "gu")
+    dataset = load_dataset("ai4bharat/IndicQA", "gu", trust_remote_code=True)
     return dataset
 
 def download_wikipedia_gujarati():
@@ -13,7 +17,8 @@ def download_wikipedia_gujarati():
     print("Downloading latest Gujarati Wikipedia...")
     wiki = load_dataset("omarkamali/wikipedia-monthly", "latest.gu", 
                         split="train",
-                        streaming=True  # stream it so you don't need to load all into RAM at once
+                        streaming=True,  # stream it so you don't need to load all into RAM at once
+                        trust_remote_code=True
                     )   
     return wiki
 
