@@ -11,6 +11,17 @@ from transformers import (
 from datasets import load_dataset, Dataset
 import json
 
+
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+# If GPU, also print which one
+if torch.cuda.is_available():
+    print(f"GPU: {torch.cuda.get_device_name(0)}")
+    print(f"VRAM available: {round(torch.cuda.memory_allocated(0)/1e9, 3)} GB used")
+
+
+
 def load_params():
     with open("params.yaml") as f:
         return yaml.safe_load(f)
