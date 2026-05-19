@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+# Data Folders
+data/raw/
+data/processed/
+data/knowledge_base/
