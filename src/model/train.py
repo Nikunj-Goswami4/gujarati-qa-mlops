@@ -1,6 +1,6 @@
+import torch
 import yaml
 import mlflow
-import torch
 from transformers import (
     AutoTokenizer,
     AutoModelForQuestionAnswering,
@@ -61,6 +61,13 @@ def preprocess_function(examples, tokenizer, max_length, doc_stride):
         sample_idx = sample_map[i]
         answer = answers[sample_idx]
         start_char = answer["answer_start"][0]
+
+        # Skip records with missing answer positions
+        if start_char is None or not answer["text"] or answer["text"][0] is None:
+            start_positions.append(0)
+            end_positions.append(0)
+            continue
+
         end_char = start_char + len(answer["text"][0])
         sequence_ids = inputs.sequence_ids(i)
 
