@@ -104,7 +104,7 @@ def train():
     model_name = params['model']['name']
     max_length = params['model']['max_length']
     doc_stride = params['model']['doc_stride']
-    lr = params['training']['learning_rate']
+    lr = float(params['training']['learning_rate'])
     batch_size = params['training']['batch_size']
     num_epochs = params['training']['num_epochs']
 
@@ -136,7 +136,7 @@ def train():
         num_train_epochs=num_epochs,
         weight_decay=params['training']['weight_decay'],
         warmup_steps=params['training']['warmup_steps'],
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
@@ -153,7 +153,6 @@ def train():
         train_dataset=tokenized_train,
         eval_dataset=tokenized_val,
         data_collator=data_collator,
-        tokenizer=tokenizer,
     )
 
     # Start MLflow run
@@ -183,12 +182,16 @@ def train():
         trainer.save_model("models/gujarati-qa-best")
         tokenizer.save_pretrained("models/gujarati-qa-best")
 
-        # Log model to MLflow
-        mlflow.transformers.log_model(
-            transformers_model={"model": model, "tokenizer": tokenizer},
-            artifact_path="gujarati-qa-model",
-            registered_model_name="gujarati-qa"
-        )
+        # # Log model to MLflow
+        # mlflow.transformers.log_model(
+        #     transformers_model={"model": model, "tokenizer": tokenizer},
+        #     task="question-answering",
+        #     name="gujarati-qa-model",
+        #     registered_model_name="gujarati-qa"
+        # )
+
+        # Skipping mlflow.transformers.log_model entirely and just log the saved model folder as an artifact instead
+        mlflow.log_artifacts("models/gujarati-qa-best", artifact_path="gujarati-qa-model")
 
         print(f"Training done. Model saved. Eval loss: {eval_results['eval_loss']:.4f}")
         return run.info.run_id

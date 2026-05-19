@@ -222,3 +222,8 @@ __marimo__/
 data/raw/
 data/processed/
 data/knowledge_base/
+
+#Folders and file after running train.py
+mlruns/
+models/
+mlflow.db
