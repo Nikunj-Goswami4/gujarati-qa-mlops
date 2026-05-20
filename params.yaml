@@ -1,12 +1,12 @@
 model:
   name: "ai4bharat/indic-bert"
-  max_length: 384
+  max_length: 256 # 384
   doc_stride: 128
 
 training:
-  learning_rate: 3e-5
+  learning_rate: 2e-5 # 3e-5
   batch_size: 8
-  num_epochs: 3
+  num_epochs: 8 # 4
   warmup_steps: 500
   weight_decay: 0.01
   seed: 42
