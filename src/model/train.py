@@ -10,6 +10,7 @@ from transformers import (
 )
 from datasets import load_dataset, Dataset
 import json
+import os
 
 
 
@@ -194,6 +195,15 @@ def train():
         mlflow.log_artifacts("models/gujarati-qa-best", artifact_path="gujarati-qa-model")
 
         print(f"Training done. Model saved. Eval loss: {eval_results['eval_loss']:.4f}")
+
+        # Save metrics to reports/metrics.json for DVC
+        os.makedirs("reports", exist_ok=True)
+        with open("reports/metrics.json", "w") as f:
+            json.dump({
+                "eval_loss": eval_results["eval_loss"],
+            }, f)
+        print("Metrics saved to reports/metrics.json")
+
         return run.info.run_id
 
 if __name__ == "__main__":
