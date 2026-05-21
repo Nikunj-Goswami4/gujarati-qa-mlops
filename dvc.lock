@@ -1,0 +1,76 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python src/data/preprocess.py
+    deps:
+    - path: data/raw/gu_wikipedia.jsonl
+      hash: md5
+      md5: d863dfc3058477080f22aafb2cbcc371
+      size: 247739800
+    - path: data/raw/indicqa_gu_train.jsonl
+      hash: md5
+      md5: 8b7b8b3a412dfe217a4e48573845339f
+      size: 8652690
+    - path: data/raw/indicqa_gu_val.jsonl
+      hash: md5
+      md5: 853ff51b4c36baf1699f2689ba01883a
+      size: 2120570
+    - path: src/data/preprocess.py
+      hash: md5
+      md5: dac760a8d945670f2237533d66ff4e35
+      size: 2792
+    outs:
+    - path: data/knowledge_base/kb.jsonl
+      hash: md5
+      md5: a3ecaf570ba81ed911e82f85d0893512
+      size: 9115356
+    - path: data/processed/train.jsonl
+      hash: md5
+      md5: 38b7f6da043e8a27fd70a58abef70a2c
+      size: 4571959
+    - path: data/processed/val.jsonl
+      hash: md5
+      md5: 6d12a7a323b15cdc2c68185064465119
+      size: 1121502
+  train:
+    cmd: python src/model/train.py
+    deps:
+    - path: data/processed/train.jsonl
+      hash: md5
+      md5: 38b7f6da043e8a27fd70a58abef70a2c
+      size: 4571959
+    - path: data/processed/val.jsonl
+      hash: md5
+      md5: 6d12a7a323b15cdc2c68185064465119
+      size: 1121502
+    - path: params.yaml
+      hash: md5
+      md5: 1851e8f4f0ccad5f462bab7173978f41
+      size: 272
+    - path: src/model/train.py
+      hash: md5
+      md5: dcdcc0900a6ac68b9aed94c2d109082d
+      size: 6971
+    params:
+      params.yaml:
+        model:
+          name: ai4bharat/indic-bert
+          max_length: 256
+          doc_stride: 128
+        training:
+          learning_rate: 2e-05
+          batch_size: 8
+          num_epochs: 8
+          warmup_steps: 500
+          weight_decay: 0.01
+          seed: 42
+    outs:
+    - path: models/gujarati-qa-best
+      hash: md5
+      md5: 98c98d13017ed4ce2020d397acdaec25.dir
+      size: 146397610
+      nfiles: 5
+    - path: reports/metrics.json
+      hash: md5
+      md5: 05408d1ba3481a37b0d754e3e8536e05
+      size: 32

@@ -1,0 +1,28 @@
+stages:
+  preprocess:
+    cmd: python src/data/preprocess.py
+    deps:
+      - data/raw/indicqa_gu_train.jsonl
+      - data/raw/indicqa_gu_val.jsonl
+      - data/raw/gu_wikipedia.jsonl
+      - src/data/preprocess.py
+    outs:
+      - data/processed/train.jsonl
+      - data/processed/val.jsonl
+      - data/knowledge_base/kb.jsonl
+
+  train:
+    cmd: python src/model/train.py
+    deps:
+      - data/processed/train.jsonl
+      - data/processed/val.jsonl
+      - src/model/train.py
+      - params.yaml
+    params:
+      - model
+      - training
+    outs:
+      - models/gujarati-qa-best
+    metrics:
+      - reports/metrics.json:
+          cache: false
