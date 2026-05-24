@@ -1,0 +1,42 @@
+# PyTorch CPU-only for Docker (no CUDA in container)
+torch==2.12.0+cpu
+torchvision==0.27.0+cpu
+torchaudio==2.11.0+cpu
+
+# Core ML
+transformers==5.8.1
+datasets==4.8.5
+accelerate==1.13.0
+sentencepiece==0.2.1
+tokenizers==0.22.2
+safetensors==0.7.0
+huggingface_hub==1.15.0
+
+# API
+fastapi==0.136.1
+uvicorn==0.47.0
+pydantic==2.13.4
+pydantic_core==2.46.4
+python-multipart==0.0.29
+starlette==0.52.1
+
+# MLflow
+mlflow==3.12.0
+mlflow-skinny==3.12.0
+
+# Data
+numpy==1.26.4
+pandas==2.1.4
+pyarrow==23.0.0
+scikit-learn==1.8.0
+
+# Monitoring
+evidently==0.7.21
+
+# Utils
+python-dotenv==1.2.2
+pyyaml==6.0.3
+requests==2.34.2
+tqdm==4.67.3
+filelock==3.29.0
+packaging==26.2
