@@ -3,40 +3,41 @@ from collections import Counter
 import string
 
 def normalize_answer(s):
-    """Lower text, remove punctuation, articles, extra whitespace"""
-    def remove_articles(text):
-        return text.replace('a ', '').replace('an ', '').replace('the ', '')
-
-    def white_space_fix(text):
-        return ' '.join(text.split())
-
-    def remove_punc(text):
-        return ''.join(ch for ch in text if ch not in string.punctuation)
-
-    return white_space_fix(remove_articles(remove_punc(s.lower())))
+    import re
+    if not s:
+        return ""
+    # Only remove actual punctuation, keep all Unicode (Gujarati) chars
+    s = re.sub(r'[!\"#$%&\'()*+,\-./:;<=>?@\[\\\]^_`{|}~]', ' ', s)
+    # Collapse whitespace
+    s = ' '.join(s.split())
+    return s.strip()
 
 def exact_match_score(prediction, ground_truth):
     return normalize_answer(prediction) == normalize_answer(ground_truth)
 
+# Fix 1 — fix empty string handling in f1_score in evaluate.py
 def f1_score(prediction, ground_truth):
-    pred = normalize_answer(prediction)
-    gt = normalize_answer(ground_truth)
+    # Both empty = perfect match
+    if not prediction.strip() and not ground_truth.strip():
+        return 1.0
+    if not prediction.strip() or not ground_truth.strip():
+        return 0.0
     
-    if not pred or not gt:
-        return 0
+    pred_tokens = normalize_answer(prediction).split()
+    gt_tokens = normalize_answer(ground_truth).split()
     
-    # Character level matching for Gujarati
+    if not pred_tokens or not gt_tokens:
+        return 0.0
+    
     from collections import Counter
-    pred_chars = Counter(pred)
-    gt_chars = Counter(gt)
+    common = Counter(pred_tokens) & Counter(gt_tokens)
+    num_common = sum(common.values())
     
-    common = sum((pred_chars & gt_chars).values())
+    if num_common == 0:
+        return 0.0
     
-    if common == 0:
-        return 0
-    
-    precision = common / len(pred)
-    recall = common / len(gt)
+    precision = num_common / len(pred_tokens)
+    recall = num_common / len(gt_tokens)
     return (2 * precision * recall) / (precision + recall)
 
 def evaluate_dataset(predictions: list, references: list):
@@ -56,3 +57,4 @@ def evaluate_dataset(predictions: list, references: list):
         "f1": round(sum(f1_scores) / len(f1_scores) * 100, 2),
         "num_samples": len(predictions)
     }
+
