@@ -5,6 +5,7 @@ stages:
       - data/raw/indicqa_gu_train.jsonl
       - data/raw/indicqa_gu_val.jsonl
       - data/raw/gu_wikipedia.jsonl
+      - data/raw/synthetic_gu_qa.jsonl
       - src/data/preprocess.py
     outs:
       - data/processed/train.jsonl

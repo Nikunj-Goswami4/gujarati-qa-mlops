@@ -1,13 +1,15 @@
 model:
-  name: "ai4bharat/indic-bert"
-  max_length: 256 # 384
+  # name: "ai4bharat/indic-bert"
+  name: "google/muril-base-cased"
+  max_length: 384     # MuRIL easily handles 384; gives the model more context
   doc_stride: 128
 
 training:
-  learning_rate: 2e-5 # 3e-5
-  batch_size: 8
-  num_epochs: 8 # 4
-  warmup_steps: 500
+  learning_rate: 3e-5 # Standard stable rate for MuRIL fine-tuning
+  batch_size: 16       # batch_size: 2 ---- Prevents OOM on RTX 3050 4GB
+  gradient_accumulation_steps: 1 # gradient_accumulation_steps: 2 ---- 2 * 4 = effective batch size of 8
+  num_epochs: 8
+  warmup_steps: 100
   weight_decay: 0.01
   seed: 42
 

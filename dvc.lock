@@ -15,10 +15,14 @@ stages:
       hash: md5
       md5: 853ff51b4c36baf1699f2689ba01883a
       size: 2120570
+    - path: data/raw/synthetic_gu_qa.jsonl
+      hash: md5
+      md5: eb5812a85c72c2c395180165f434d702
+      size: 3596550
     - path: src/data/preprocess.py
       hash: md5
-      md5: dac760a8d945670f2237533d66ff4e35
-      size: 2792
+      md5: 35982c10997ba3f48bdabeb351f143c7
+      size: 3892
     outs:
     - path: data/knowledge_base/kb.jsonl
       hash: md5
@@ -26,8 +30,8 @@ stages:
       size: 9115356
     - path: data/processed/train.jsonl
       hash: md5
-      md5: 38b7f6da043e8a27fd70a58abef70a2c
-      size: 4571959
+      md5: c5e026faa1d6bf1178b8acfb7f114d15
+      size: 8140369
     - path: data/processed/val.jsonl
       hash: md5
       md5: 6d12a7a323b15cdc2c68185064465119
@@ -37,40 +41,41 @@ stages:
     deps:
     - path: data/processed/train.jsonl
       hash: md5
-      md5: 38b7f6da043e8a27fd70a58abef70a2c
-      size: 4571959
+      md5: c5e026faa1d6bf1178b8acfb7f114d15
+      size: 8140369
     - path: data/processed/val.jsonl
       hash: md5
       md5: 6d12a7a323b15cdc2c68185064465119
       size: 1121502
     - path: params.yaml
       hash: md5
-      md5: 1851e8f4f0ccad5f462bab7173978f41
-      size: 272
+      md5: 11a9ac4b7539c6cc56a4e5b0b62711b1
+      size: 505
     - path: src/model/train.py
       hash: md5
-      md5: dcdcc0900a6ac68b9aed94c2d109082d
-      size: 6971
+      md5: 0fe812ee32e06ac3ca8a050f07970f46
+      size: 7156
     params:
       params.yaml:
         model:
-          name: ai4bharat/indic-bert
-          max_length: 256
+          name: google/muril-base-cased
+          max_length: 384
           doc_stride: 128
         training:
-          learning_rate: 2e-05
-          batch_size: 8
-          num_epochs: 8
-          warmup_steps: 500
+          learning_rate: 3e-05
+          batch_size: 2
+          gradient_accumulation_steps: 4
+          num_epochs: 4
+          warmup_steps: 200
           weight_decay: 0.01
           seed: 42
     outs:
     - path: models/gujarati-qa-best
       hash: md5
-      md5: 98c98d13017ed4ce2020d397acdaec25.dir
-      size: 146397610
+      md5: 98e547eb3e25e4ab301765ca13efbce8.dir
+      size: 954306324
       nfiles: 5
     - path: reports/metrics.json
       hash: md5
-      md5: 05408d1ba3481a37b0d754e3e8536e05
+      md5: 7119532789f13813c36ff5353cd9db49
       size: 32
