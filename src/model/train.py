@@ -121,18 +121,21 @@ def train():
     tokenized_train = train_dataset.map(
         lambda x: preprocess_function(x, tokenizer, max_length, doc_stride),
         batched=True,
-        remove_columns=train_dataset.column_names
+        remove_columns=train_dataset.column_names,
+        load_from_cache_file=False  # force fresh tokenization
     )
     tokenized_val = val_dataset.map(
         lambda x: preprocess_function(x, tokenizer, max_length, doc_stride),
         batched=True,
-        remove_columns=val_dataset.column_names
+        remove_columns=val_dataset.column_names,
+        load_from_cache_file=False  # force fresh tokenization
     )
 
     training_args = TrainingArguments(
         output_dir="models/gujarati-qa",
         learning_rate=lr,
         per_device_train_batch_size=batch_size,
+        gradient_accumulation_steps=params['training']['gradient_accumulation_steps'],
         per_device_eval_batch_size=batch_size,
         num_train_epochs=num_epochs,
         weight_decay=params['training']['weight_decay'],
@@ -141,7 +144,8 @@ def train():
         save_strategy="epoch",
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
-        fp16=True,           # halves VRAM usage
+        fp16=True,           # Halves VRAM usage
+        gradient_checkpointing=False, # If TRUE it drastically reduce memory usage during MuRIL training (use for laptop GPU)
         logging_dir="logs/training",
         report_to="none",  # We handle MLflow manually
         seed=params['training']['seed']
