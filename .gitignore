@@ -227,3 +227,10 @@ data/knowledge_base/
 mlruns/
 models/
 mlflow.db
+
+# Gradio cache
+.gradio/
+
+# Local logs and generated reports
+logs/
+reports/*.html
