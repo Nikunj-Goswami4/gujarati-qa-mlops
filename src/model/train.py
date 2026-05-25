@@ -21,8 +21,6 @@ if torch.cuda.is_available():
     print(f"GPU: {torch.cuda.get_device_name(0)}")
     print(f"VRAM available: {round(torch.cuda.memory_allocated(0)/1e9, 3)} GB used")
 
-
-
 def load_params():
     with open("params.yaml") as f:
         return yaml.safe_load(f)
@@ -108,6 +106,15 @@ def train():
     lr = float(params['training']['learning_rate'])
     batch_size = params['training']['batch_size']
     num_epochs = params['training']['num_epochs']
+
+    # If an external tracking server environment variable is set (like in Docker or GitHub Actions), 
+    # MLflow connects to it. Otherwise, it safely defaults to a local tracking folder directory.
+    if os.environ.get("MLFLOW_TRACKING_URI"):
+        mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI"))
+        print(f"MLflow connecting to tracking server: {os.environ.get('MLFLOW_TRACKING_URI')}")
+    else:
+        mlflow.set_tracking_uri("mlruns")
+        print("MLflow tracking defaulting to local directory: ./mlruns")
 
     print(f"Loading tokenizer and model: {model_name}")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
