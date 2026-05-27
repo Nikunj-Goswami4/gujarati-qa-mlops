@@ -1,0 +1,190 @@
+name: Train and Deploy Gujarati QA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'params.yaml'
+      - 'src/model/train.py'
+      - 'dvc.lock'
+  workflow_dispatch:   # Allows you to trigger this manually from GitHub
+
+jobs:
+
+  # ── JOB 1: Train on Kaggle and show metrics ──────────
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180   # 3 hours max
+    outputs:
+      eval_loss: ${{ steps.metrics.outputs.eval_loss }}
+      f1: ${{ steps.metrics.outputs.f1 }}
+      exact_match: ${{ steps.metrics.outputs.exact_match }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Kaggle CLI
+        run: pip install kaggle huggingface_hub
+
+      - name: Set up Kaggle credentials
+        run: |
+          mkdir -p ~/.kaggle
+          echo '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
+
+      - name: Trigger training on Kaggle T4 GPU
+        run: |
+          echo "Pushing training script to Kaggle..."
+          cd kaggle
+          kaggle kernels push -p .
+          echo "Kaggle training kernel started!"
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+
+      - name: Wait for Kaggle training to finish
+        # Checks status every 60 seconds for up to 120 minutes
+        run: |
+          python3 - << 'PYEOF'
+          import time, os, sys
+          from kaggle.api.kaggle_api_extended import KaggleApiExtended
+
+          api = KaggleApiExtended()
+          api.authenticate()
+
+          username    = os.environ["KAGGLE_USERNAME"]
+          kernel_name = "gujarati-qa-train"
+          kernel_slug = f"{username}/{kernel_name}"
+
+          print(f"Watching kernel: {kernel_slug}")
+          print("Checking every 60 seconds (up to 120 minutes)...\n")
+
+          for i in range(120):
+              result = api.kernel_status(username, kernel_name)
+              status = result.get("status", "unknown")
+              print(f"[{i+1}/120] Status: {status}")
+
+              if status == "complete":
+                  print("\nTraining finished! Model pushed to HuggingFace by Kaggle.")
+                  sys.exit(0)
+              elif status == "error":
+                  print("\nKaggle kernel failed. Check kaggle.com for error logs.")
+                  sys.exit(1)
+
+              time.sleep(60)
+
+          print("\nTimed out after 120 minutes.")
+          sys.exit(1)
+          PYEOF
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+
+      # - name: Build Docker image
+      #   run: |
+      #     docker build -f docker/Dockerfile -t gujarati-qa-api:latest .
+      #     echo "Docker image built successfully."
+
+      - name: Download metrics from HuggingFace staging
+        id: metrics
+        run: |
+          python3 - << 'PYEOF'
+          import json
+          from huggingface_hub import hf_hub_download
+          import os
+
+          path = hf_hub_download(
+              repo_id="Nikunj4/gujarati-qa-staging",
+              filename="metrics.json",
+              token=os.environ["HF_TOKEN"]
+          )
+          with open(path) as f:
+              m = json.load(f)
+
+          # Write to GitHub Actions output
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"eval_loss={m.get('eval_loss', 'N/A')}\n")
+              out.write(f"f1={m.get('f1', 'N/A')}\n")
+              out.write(f"exact_match={m.get('exact_match', 'N/A')}\n")
+
+          # Print nicely in the Actions log
+          print("=" * 40)
+          print("       NEW MODEL METRICS")
+          print("=" * 40)
+          print(f"  Eval Loss    : {m.get('eval_loss', 'N/A')}")
+          print(f"  F1 Score     : {m.get('f1', 'N/A')}")
+          print(f"  Exact Match  : {m.get('exact_match', 'N/A')}")
+          print("=" * 40)
+          PYEOF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
+      - name: Show metrics summary
+        run: |
+          echo "## New Model Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Eval Loss | ${{ steps.metrics.outputs.eval_loss }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| F1 Score | ${{ steps.metrics.outputs.f1 }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Exact Match | ${{ steps.metrics.outputs.exact_match }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Go to the **deploy** job below to Approve or Reject deployment." >> $GITHUB_STEP_SUMMARY
+
+  # ── JOB 2: Deploy to production (waits for YOUR approval) ──
+  deploy:
+    needs: train          # only runs after train job finishes
+    runs-on: ubuntu-latest
+    environment: production   # THIS LINE triggers the approval email to you
+
+    steps:
+      - name: Show metrics before deploying
+        run: |
+          echo "Deploying model with these metrics:"
+          echo "  Eval Loss  : ${{ needs.train.outputs.eval_loss }}"
+          echo "  F1 Score   : ${{ needs.train.outputs.f1 }}"
+          echo "  Exact Match: ${{ needs.train.outputs.exact_match }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install huggingface_hub
+        run: pip install huggingface_hub
+
+      - name: Copy staging model to production
+        run: |
+          python3 - << 'PYEOF'
+          import os
+          from huggingface_hub import HfApi, hf_hub_download
+
+          api   = HfApi()
+          token = os.environ["HF_TOKEN"]
+
+          # Copy every file from staging → production
+          staging    = "Nikunj4/gujarati-qa-staging"
+          production = "Nikunj4/gujarati-qa-model"
+
+          files = api.list_repo_files(staging, token=token)
+          for filename in files:
+              if filename == "metrics.json":
+                  continue   # skip metrics file
+
+              api.upload_file(
+                  path_or_fileobj=hf_hub_download(staging, filename, token=token),
+                  path_in_repo=filename,
+                  repo_id=production,
+                  token=token
+              )
+              print(f"Copied: {filename}")
+
+          print("Model is now LIVE on HuggingFace production!")
+          PYEOF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
