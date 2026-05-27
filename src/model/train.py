@@ -149,6 +149,7 @@ def train():
         warmup_steps=params['training']['warmup_steps'],
         eval_strategy="epoch",
         save_strategy="epoch",
+        save_total_limit=1,          # Deletes old intermediate epochs and keeps disk clean.
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
         fp16=True,           # Halves VRAM usage
