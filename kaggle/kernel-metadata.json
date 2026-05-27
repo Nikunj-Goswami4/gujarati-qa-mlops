@@ -1,0 +1,15 @@
+{
+  "id": "nikunjgoswami/gujarati-qa-train",
+  "title": "Gujarati QA Training",
+  "code_file": "train_on_kaggle.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [
+    "nikunjgoswami/gujarati-qa-data"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}
