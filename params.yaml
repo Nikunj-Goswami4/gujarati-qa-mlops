@@ -1,7 +1,7 @@
 model:
   # name: "ai4bharat/indic-bert"
   name: "google/muril-base-cased"
-  max_length: 512     # Absolute architectural limit for MuRIL; maximizes context window on Kaggle T4 GPU
+  max_length: 384     # Absolute architectural limit for MuRIL is 512
   doc_stride: 128
 
 training:
