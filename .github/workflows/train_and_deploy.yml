@@ -60,7 +60,7 @@ jobs:
 
           for i in range(120):
               result = api.kernels_status(kernel_slug)
-              status = result.get("status", "unknown")
+              status = getattr(result, "status", "unknown")
               print(f"[{i+1}/120] Status: {status}")
 
               if status == "complete":
