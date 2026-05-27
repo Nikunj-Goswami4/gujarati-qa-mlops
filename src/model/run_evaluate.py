@@ -67,10 +67,10 @@ def main():
         start_logits = outputs.start_logits[0].cpu()
         end_logits = outputs.end_logits[0].cpu()
         
-        # FIX 1: Identify token positions belonging ONLY to the context string
+        # Identify token positions belonging ONLY to the context string
         sequence_ids = inputs.sequence_ids(0)
         
-        # FIX 2: Heavily penalize non-context tokens (Question, Special Tokens, Padding)
+        # Heavily penalize non-context tokens (Question, Special Tokens, Padding)
         for idx, seq_id in enumerate(sequence_ids):
             if seq_id != 1:  # 1 means context token
                 start_logits[idx] = -10000.0
@@ -92,7 +92,7 @@ def main():
                     best_score = score
                     best_start, best_end = s, e
 
-        # FIX 3: Safe character mapping slice using context offsets
+        # Safe character mapping slice using context offsets
         if best_score == -float('inf') or best_start == 0:
             answer = ""
         else:
@@ -120,6 +120,23 @@ def main():
     print(f"F1 Score    : {results['f1']}%  (target: >60%)")
     print(f"Samples     : {results['num_samples']}")
     print("==============================")
+
+    metrics_path = "reports/metrics.json"
+
+    # Load existing metrics.json (has eval_loss from train.py)
+    existing_metrics = {}
+    if os.path.exists(metrics_path):
+        with open(metrics_path, "r") as f:
+            existing_metrics = json.load(f)
+
+    # Merge F1 and Exact Match into it
+    existing_metrics["exact_match"] = results['exact_match']
+    existing_metrics["f1"] = results['f1']
+
+    with open(metrics_path, "w") as f:
+        json.dump(existing_metrics, f, indent=2)
+
+    print(f"Metrics saved to {metrics_path}")
 
 if __name__ == "__main__":
     main()
