@@ -4,6 +4,8 @@
 import subprocess
 import os
 import sys
+from kaggle_secrets import UserSecretsClient
+secrets = UserSecretsClient()
 
 print("=" * 50)
 print("Gujarati QA - Kaggle T4 GPU Training")
@@ -42,14 +44,56 @@ os.chdir("project")
 print("Repo cloned.")
 
 # ── Step 3: Set up data ───────────────────────────
-print("\n[3/6] Copying data from Kaggle dataset...")
+print("\n[3/6] Setting up data from Kaggle dataset...", flush=True)
 os.makedirs("data/processed", exist_ok=True)
-subprocess.run([
-    "cp", "-r",
-    "/kaggle/input/gujarati-qa-data/.",
-    "data/processed/"
-], check=True)
-print("Data ready at data/processed/")
+
+import shutil
+
+# Define potential root mounting paths
+candidate_roots = [
+    "/kaggle/input/gujarati-qa-data",
+    "/kaggle/input/datasets/nikunjgoswami/gujarati-qa-data"
+]
+
+target_dir = None
+
+# Look for the actual directory containing train.jsonl dynamically
+if os.path.exists("/kaggle/input"):
+    for root, dirs, files in os.walk("/kaggle/input"):
+        if "train.jsonl" in files:
+            target_dir = root
+            print(f"📦 Successfully located dataset files inside: {target_dir}", flush=True)
+            break
+
+# Fallback checking if the recursive walk fails
+if not target_dir:
+    for path in candidate_roots:
+        # Check if the nested 'processed' folder exists explicitly
+        nested_processed = os.path.join(path, "processed")
+        if os.path.exists(nested_processed):
+            target_dir = nested_processed
+            break
+        elif os.path.exists(path):
+            target_dir = path
+            break
+
+# Copy the flat file contents directly into data/processed/
+if target_dir:
+    copied_count = 0
+    for filename in os.listdir(target_dir):
+        src_path = os.path.join(target_dir, filename)
+        dest_path = os.path.join("data/processed", filename)
+        
+        # Only copy files to avoid creating nested folders
+        if os.path.isfile(src_path):
+            shutil.copy(src_path, dest_path)
+            print(f"  -> Copied: {filename}", flush=True)
+            copied_count += 1
+            
+    print(f"✅ Data copy complete! Loaded {copied_count} files directly into data/processed/", flush=True)
+else:
+    print("❌ CRITICAL ERROR: Could not locate train.jsonl anywhere under /kaggle/input!", flush=True)
+    sys.exit(1)
 
 # Dynamic Drift Adaptation Injector:
 # Checks if the automated 2 AM GitHub Workflow packaged any fresh real-time drift logs
