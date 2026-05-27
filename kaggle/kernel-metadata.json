@@ -1,6 +1,6 @@
 {
   "id": "nikunjgoswami/gujarati-qa-train",
-  "title": "Gujarati QA Training",
+  "title": "Gujarati QA Train",
   "code_file": "train_on_kaggle.py",
   "language": "python",
   "kernel_type": "script",
