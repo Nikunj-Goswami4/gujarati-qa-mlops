@@ -76,24 +76,24 @@ jobs:
           kernel_name = "gujarati-qa-train"
           kernel_slug = f"{username}/{kernel_name}"
 
-          print(f"Watching kernel: {kernel_slug}")
-          print("Checking every 60 seconds (up to 120 minutes)...\n")
+          print(f"Watching kernel: {kernel_slug}", flush=True)
+          print("Checking every 60 seconds (up to 120 minutes)...\n", flush=True)
 
           for i in range(120):
               result = api.kernels_status(kernel_slug)
-              status = getattr(result, "status", "unknown")
-              print(f"[{i+1}/120] Status: {status}")
+              status = getattr(result, "status", "unknown").lower()
+              print(f"[{i+1}/120] Status: {status}", flush=True)
 
-              if status == "complete":
-                  print("\nTraining finished! Model pushed to HuggingFace by Kaggle.")
+              if status in ["complete", "completed"]:
+                  print("\nTraining finished! Model pushed to HuggingFace by Kaggle.", flush=True)
                   sys.exit(0)
               elif status == "error":
-                  print("\nKaggle kernel failed. Check kaggle.com for error logs.")
+                  print("\nKaggle kernel failed. Check kaggle.com for error logs.", flush=True)
                   sys.exit(1)
 
               time.sleep(60)
 
-          print("\nTimed out after 120 minutes.")
+          print("\nTimed out after 120 minutes.", flush=True)
           sys.exit(1)
           PYEOF
         env:
