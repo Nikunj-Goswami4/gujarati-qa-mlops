@@ -1,0 +1,201 @@
+name: Retrain on Drift Detection
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'   # Runs automatically every Monday at 2 AM UTC
+  workflow_dispatch:        # Also allows manual trigger from GitHub
+
+jobs:
+
+  # ── JOB 1: Check for drift and retrain the model ──────────
+  check-and-retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    outputs:
+      drift_detected: ${{ steps.drift_check.outputs.drift_detected }}
+      eval_loss: ${{ steps.metrics.outputs.eval_loss }}
+      f1: ${{ steps.metrics.outputs.f1 }}
+      exact_match: ${{ steps.metrics.outputs.exact_match }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check for drift
+        id: drift_check
+        run: |
+          python -c "
+          from src.monitoring.drift_detector import run_drift_check
+          _, drift = run_drift_check()
+          print(f'drift_detected={str(drift).lower()}')
+          " >> $GITHUB_OUTPUT
+
+      - name: Show drift result
+        run: |
+          echo "Drift detected: ${{ steps.drift_check.outputs.drift_detected }}"
+
+      # All steps below only run if drift was actually detected
+      - name: Install Kaggle CLI
+        if: steps.drift_check.outputs.drift_detected == 'true'
+        run: pip install kaggle
+
+      - name: Set up Kaggle credentials
+        if: steps.drift_check.outputs.drift_detected == 'true'
+        run: |
+          mkdir -p ~/.kaggle
+          echo '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
+
+      # Fresh Drift Logs Bundle Injector:
+      # Intercepts the execution loop to drop the production logs directly into the deployment package
+      - name: Package Fresh Drift Logs into Deployment Bundle
+        if: steps.drift_check.outputs.drift_detected == 'true'
+        run: |
+          if [ -f logs/latest_drifted_data.jsonl ]; then
+            cp logs/latest_drifted_data.jsonl ./kaggle/drifted_logs.jsonl
+            echo "✅ Fresh real-world drift logs packaged successfully."
+          else
+            echo "⚠️ No recent production log files located. Proceeding with basic run parameters."
+          fi
+
+      - name: Trigger retraining on Kaggle T4 GPU
+        if: steps.drift_check.outputs.drift_detected == 'true'
+        run: |
+          echo "Drift detected! Starting retraining on Kaggle..."
+          cd kaggle
+          kaggle kernels push -p .
+          echo "Kaggle retraining kernel started!"
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+
+      - name: Wait for Kaggle retraining to finish
+        if: steps.drift_check.outputs.drift_detected == 'true'
+        run: |
+          python3 - << 'PYEOF'
+          import time, os, sys
+          from kaggle.api.kaggle_api_extended import KaggleApiExtended
+
+          api = KaggleApi()
+          api.authenticate()
+
+          username    = os.environ["KAGGLE_USERNAME"]
+          kernel_name = "gujarati-qa-train"
+          kernel_slug = f"{username}/{kernel_name}"
+
+          print(f"Watching kernel: {kernel_slug}")
+          print("Checking every 60 seconds (up to 120 minutes)...\n")
+
+          for i in range(120):
+              result = api.kernel_status(username, kernel_name)
+              status = result.get("status", "unknown")
+              print(f"[{i+1}/120] Status: {status}")
+
+              if status == "complete":
+                  print("\nRetraining finished! Model pushed to HuggingFace by Kaggle.")
+                  sys.exit(0)
+              elif status == "error":
+                  print("\nKaggle kernel failed. Check kaggle.com for error logs.")
+                  sys.exit(1)
+
+              time.sleep(60)
+
+          print("\nTimed out after 120 minutes.")
+          sys.exit(1)
+          PYEOF
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+
+      - name: Download metrics from HuggingFace staging
+        id: metrics
+        run: |
+          python3 - << 'PYEOF'
+          import json
+          from huggingface_hub import hf_hub_download
+          import os
+
+          path = hf_hub_download(
+              repo_id="Nikunj4/gujarati-qa-staging",
+              filename="metrics.json",
+              token=os.environ["HF_TOKEN"]
+          )
+          with open(path) as f:
+              m = json.load(f)
+
+          # Write to GitHub Actions output
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"eval_loss={m.get('eval_loss', 'N/A')}\n")
+              out.write(f"f1={m.get('f1', 'N/A')}\n")
+              out.write(f"exact_match={m.get('exact_match', 'N/A')}\n")
+
+          # Print nicely in the Actions log
+          print("=" * 40)
+          print("       NEW MODEL METRICS")
+          print("=" * 40)
+          print(f"  Eval Loss    : {m.get('eval_loss', 'N/A')}")
+          print(f"  F1 Score     : {m.get('f1', 'N/A')}")
+          print(f"  Exact Match  : {m.get('exact_match', 'N/A')}")
+          print("=" * 40)
+          PYEOF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      
+      - name: No drift found - skipping retraining
+        if: steps.drift_check.outputs.drift_detected == 'false'
+        run: echo "No drift detected. Retraining skipped. All good!"
+
+  
+  # ── JOB 2: Deploy ──────────
+  deploy:
+    needs: check-and-retrain
+    if: needs.check-and-retrain.outputs.drift_detected == 'true'
+    runs-on: ubuntu-latest
+    environment: production    # triggers approval email
+
+    steps:
+      - name: Show metrics before deploying
+        run: |
+          echo "Drift was detected. New model metrics:"
+          echo "  Eval Loss  : ${{ needs.check-and-retrain.outputs.eval_loss }}"
+          echo "  F1 Score   : ${{ needs.check-and-retrain.outputs.f1 }}"
+          echo "  Exact Match: ${{ needs.check-and-retrain.outputs.exact_match }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install huggingface_hub
+        run: pip install huggingface_hub
+
+      - name: Copy staging to production on approval
+        run: |
+          python3 - << 'PYEOF'
+          import os
+          from huggingface_hub import HfApi
+          api   = HfApi()
+          token = os.environ["HF_TOKEN"]
+          staging    = "Nikunj4/gujarati-qa-staging"
+          production = "Nikunj4/gujarati-qa-model"
+          for filename in api.list_repo_files(staging, token=token):
+              if filename == "metrics.json":
+                  continue
+              api.upload_file(
+                  path_or_fileobj=api.hf_hub_download(staging, filename, token=token),
+                  path_in_repo=filename,
+                  repo_id=production,
+                  token=token
+              )
+              print(f"Copied: {filename}")
+          print("Done. Model is live on production!")
+          PYEOF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
