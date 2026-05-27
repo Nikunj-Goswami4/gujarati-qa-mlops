@@ -152,7 +152,7 @@ def train():
         save_total_limit=1,          # Deletes old intermediate epochs and keeps disk clean.
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
-        fp16=True,           # Halves VRAM usage
+        fp16=False,           # Halves VRAM usage --- Turning it False for Kaggle T4 GPU
         gradient_checkpointing=False, # If TRUE it drastically reduce memory usage during MuRIL training (use for laptop GPU)
         logging_dir="logs/training",
         report_to="none",  # We handle MLflow manually
