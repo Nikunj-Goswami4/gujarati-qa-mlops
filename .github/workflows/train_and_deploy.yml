@@ -81,7 +81,7 @@ jobs:
 
           for i in range(120):
               result = api.kernels_status(kernel_slug)
-              status = getattr(result, "status", "unknown").lower()
+              status = str(getattr(result, "status", "unknown")).lower()
               print(f"[{i+1}/120] Status: {status}", flush=True)
 
               if status in ["complete", "completed"]:
