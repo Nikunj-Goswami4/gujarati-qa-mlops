@@ -46,13 +46,6 @@ jobs:
         if: steps.drift_check.outputs.drift_detected == 'true'
         run: pip install kaggle
 
-      - name: Set up Kaggle credentials
-        if: steps.drift_check.outputs.drift_detected == 'true'
-        run: |
-          mkdir -p ~/.kaggle
-          echo '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' > ~/.kaggle/kaggle.json
-          chmod 600 ~/.kaggle/kaggle.json
-
       # Fresh Drift Logs Bundle Injector:
       # Intercepts the execution loop to drop the production logs directly into the deployment package
       - name: Package Fresh Drift Logs into Deployment Bundle
@@ -73,8 +66,7 @@ jobs:
           kaggle kernels push -p .
           echo "Kaggle retraining kernel started!"
         env:
-          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_KEY }}
 
       - name: Wait for Kaggle retraining to finish
         if: steps.drift_check.outputs.drift_detected == 'true'
@@ -86,7 +78,7 @@ jobs:
           api = KaggleApi()
           api.authenticate()
 
-          username    = os.environ["KAGGLE_USERNAME"]
+          username = "nikunjgoswami"
           kernel_name = "gujarati-qa-train"
           kernel_slug = f"{username}/{kernel_name}"
 
@@ -111,8 +103,7 @@ jobs:
           sys.exit(1)
           PYEOF
         env:
-          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_KEY }}
 
       - name: Download metrics from HuggingFace staging
         id: metrics

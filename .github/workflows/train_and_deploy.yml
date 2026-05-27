@@ -32,12 +32,6 @@ jobs:
       - name: Install Kaggle CLI
         run: pip install kaggle huggingface_hub
 
-      - name: Set up Kaggle credentials
-        run: |
-          mkdir -p ~/.kaggle
-          echo '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' > ~/.kaggle/kaggle.json
-          chmod 600 ~/.kaggle/kaggle.json
-
       - name: Trigger training on Kaggle T4 GPU
         run: |
           echo "Pushing training script to Kaggle..."
@@ -45,20 +39,19 @@ jobs:
           kaggle kernels push -p .
           echo "Kaggle training kernel started!"
         env:
-          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_KEY }}
 
       - name: Wait for Kaggle training to finish
         # Checks status every 60 seconds for up to 120 minutes
         run: |
           python3 - << 'PYEOF'
           import time, os, sys
-          from kaggle.api.kaggle_api_extended import KaggleApiExtended
+          from kaggle.api.kaggle_api_extended import KaggleApi
 
-          api = KaggleApiExtended()
+          api = KaggleApi()
           api.authenticate()
 
-          username    = os.environ["KAGGLE_USERNAME"]
+          username = "nikunjgoswami"
           kernel_name = "gujarati-qa-train"
           kernel_slug = f"{username}/{kernel_name}"
 
@@ -83,8 +76,7 @@ jobs:
           sys.exit(1)
           PYEOF
         env:
-          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_KEY }}
 
       # - name: Build Docker image
       #   run: |
