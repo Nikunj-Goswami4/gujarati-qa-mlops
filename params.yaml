@@ -1,13 +1,13 @@
 model:
   # name: "ai4bharat/indic-bert"
   name: "google/muril-base-cased"
-  max_length: 384     # MuRIL easily handles 384; gives the model more context
+  max_length: 512     # Absolute architectural limit for MuRIL; maximizes context window on Kaggle T4 GPU
   doc_stride: 128
 
 training:
   learning_rate: 3e-5 # Standard stable rate for MuRIL fine-tuning
-  batch_size: 16       # batch_size: 2 ---- Prevents OOM on RTX 3050 4GB
-  gradient_accumulation_steps: 1 # gradient_accumulation_steps: 2 ---- 2 * 4 = effective batch size of 8
+  batch_size: 16       # Optimal size for 16GB VRAM at 512 max_length to prevent cloud OOM
+  gradient_accumulation_steps: 1 # No accumulation needed; batch size 16 fits natively in cloud VRAM
   num_epochs: 8
   warmup_steps: 100
   weight_decay: 0.01
