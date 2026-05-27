@@ -4,8 +4,6 @@
 import subprocess
 import os
 import sys
-from kaggle_secrets import UserSecretsClient
-secrets = UserSecretsClient()
 
 print("=" * 50)
 print("Gujarati QA - Kaggle T4 GPU Training")
@@ -116,18 +114,14 @@ else:
 
 # MLflow Tracker Injection mapping:
 # Bypasses the empty dashboard bug by linking Kaggle directly to DagsHub
-try:
-    os.environ["MLFLOW_TRACKING_URI"] = secrets.get_secret("MLFLOW_TRACKING_URI")
-    os.environ["MLFLOW_TRACKING_USERNAME"] = secrets.get_secret("MLFLOW_TRACKING_USERNAME")
-    os.environ["MLFLOW_TRACKING_PASSWORD"] = secrets.get_secret("MLFLOW_TRACKING_PASSWORD")
-    print("MLflow tracking variables mapped securely to DagsHub.")
-except Exception as e:
-    print(f"Warning - MLflow server environment parameters omitted: {e}")
+# Secrets injected by GitHub Actions before this script is pushed to Kaggle
+os.environ["MLFLOW_TRACKING_URI"]      = "MLFLOW_URI_PLACEHOLDER"
+os.environ["MLFLOW_TRACKING_USERNAME"] = "MLFLOW_USERNAME_PLACEHOLDER"
+os.environ["MLFLOW_TRACKING_PASSWORD"] = "MLFLOW_PASSWORD_PLACEHOLDER"
 
-# Load HuggingFace token from Kaggle secrets
-hf_token = secrets.get_secret("HF_TOKEN")
+hf_token = "HF_TOKEN_PLACEHOLDER"
 os.environ["HF_TOKEN"] = hf_token
-print("HuggingFace token loaded.")
+print("All credentials loaded.")
 
 # ── Step 4: Run training ──────────────────────────
 print("\n[4/6] Starting training...")
@@ -186,3 +180,11 @@ print("GitHub Actions will now show you metrics and ask for approval.")
 print("=" * 50)
 print("All done! Training finished on Kaggle T4 GPU.")
 print("=" * 50)
+
+# Wipe all secrets from memory when done
+hf_token = "CLEARED"
+os.environ["HF_TOKEN"]                = "CLEARED"
+os.environ["MLFLOW_TRACKING_URI"]     = "CLEARED"
+os.environ["MLFLOW_TRACKING_USERNAME"]= "CLEARED"
+os.environ["MLFLOW_TRACKING_PASSWORD"]= "CLEARED"
+print("All secrets cleared from memory.")
