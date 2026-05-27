@@ -86,7 +86,7 @@ jobs:
           print("Checking every 60 seconds (up to 120 minutes)...\n")
 
           for i in range(120):
-              result = api.kernel_status(username, kernel_name)
+              result = api.kernels_status(username, kernel_name)
               status = result.get("status", "unknown")
               print(f"[{i+1}/120] Status: {status}")
 
