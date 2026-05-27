@@ -38,7 +38,8 @@ def predict(request: QARequest):
         question=request.question,
         context=request.context,
         answer=result["answer"],
-        confidence=result["confidence"]
+        confidence=result["confidence"],
+        answer_start=result["answer_start"]
     )
 
     return QAResponse(
