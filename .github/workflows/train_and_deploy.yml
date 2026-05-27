@@ -84,10 +84,10 @@ jobs:
               status = str(getattr(result, "status", "unknown")).lower()
               print(f"[{i+1}/120] Status: {status}", flush=True)
 
-              if status in ["complete", "completed"]:
+              if "complete" in status:
                   print("\nTraining finished! Model pushed to HuggingFace by Kaggle.", flush=True)
                   sys.exit(0)
-              elif status == "error":
+              elif "error" in status:
                   print("\nKaggle kernel failed. Check kaggle.com for error logs.", flush=True)
                   sys.exit(1)
 
