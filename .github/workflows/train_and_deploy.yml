@@ -175,7 +175,7 @@ jobs:
         run: |
           python3 - << 'PYEOF'
           import os
-          from huggingface_hub import HfApi, hf_hub_download
+          from huggingface_hub import HfApi, hf_hub_download, CommitOperationAdd
 
           api   = HfApi()
           token = os.environ["HF_TOKEN"]
@@ -184,20 +184,38 @@ jobs:
           staging    = "Nikunj4/gujarati-qa-staging"
           production = "Nikunj4/gujarati-qa-model"
 
+          print("Scanning staging artifacts...")
           files = api.list_repo_files(staging, token=token)
+
+          # Build a transaction bundle of file additions
+          commit_operations = []
           for filename in files:
-              if filename == "metrics.json":
-                  continue   # skip metrics file
-
-              api.upload_file(
-                  path_or_fileobj=hf_hub_download(staging, filename, token=token),
-                  path_in_repo=filename,
-                  repo_id=production,
-                  token=token
+              if filename in ["metrics.json", ".gitattributes"]:
+                  continue   # Skip metrics logging arrays and core properties
+              
+              print(f" -> Staging transaction addition: {filename}")
+              local_file_path = hf_hub_download(staging, filename, token=token)
+              
+              commit_operations.append(
+                  CommitOperationAdd(
+                      path_in_repo=filename,
+                      path_or_fileobj=local_file_path
+                  )
               )
-              print(f"Copied: {filename}")
 
-          print("Model is now LIVE on HuggingFace production!")
+          # This forces all files to upload completely before creating a single commit
+          print("Pushing all files simultaneously via single atomic commit...")
+          api.create_commit(
+              repo_id=production,
+              operations=commit_operations,
+              commit_message="prod: release consolidated model weights transaction",
+              token=token
+          )
+          print("All production assets committed successfully!")
+
+          print("Initializing hot-reload cycle on live container cluster...")
+          api.restart_space(repo_id="Nikunj4/gujarati-qa-demo", token=token)
+          print("Live application instance is restarting with full synchronized weights!")
           PYEOF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
