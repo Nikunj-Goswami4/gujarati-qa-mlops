@@ -234,3 +234,6 @@ mlflow.db
 # Local logs and generated reports
 logs/
 reports/*.html
+
+# HuggingFace Space
+gujarati-qa-demo/
