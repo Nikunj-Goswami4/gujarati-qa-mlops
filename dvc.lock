@@ -17,25 +17,25 @@ stages:
       size: 2120570
     - path: data/raw/synthetic_gu_qa.jsonl
       hash: md5
-      md5: eb5812a85c72c2c395180165f434d702
-      size: 3596550
+      md5: 6570705ad5a2dfaa6c7637a69234d394
+      size: 5991275
     - path: src/data/preprocess.py
       hash: md5
-      md5: 35982c10997ba3f48bdabeb351f143c7
-      size: 3892
+      md5: 9dc2147f27ef13ea170f6a5f93ec8fd7
+      size: 6206
     outs:
     - path: data/knowledge_base/kb.jsonl
       hash: md5
-      md5: a3ecaf570ba81ed911e82f85d0893512
-      size: 9115356
+      md5: 5b569c5d0bb1d891cfdbc41ff5ec2d22
+      size: 28512549
     - path: data/processed/train.jsonl
       hash: md5
-      md5: c5e026faa1d6bf1178b8acfb7f114d15
-      size: 8140369
+      md5: a078bdac251598048f2ab9746a874eea
+      size: 181258524
     - path: data/processed/val.jsonl
       hash: md5
-      md5: 6d12a7a323b15cdc2c68185064465119
-      size: 1121502
+      md5: 211ad7b03ac0780aa1da5f7f6de18fb3
+      size: 701060
   train:
     cmd: python src/model/train.py
     deps:

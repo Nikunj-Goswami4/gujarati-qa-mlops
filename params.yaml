@@ -8,8 +8,8 @@ training:
   learning_rate: 3e-5 # Standard stable rate for MuRIL fine-tuning
   batch_size: 16       # Optimal size for 16GB VRAM at 512 max_length to prevent cloud OOM
   gradient_accumulation_steps: 1 # No accumulation needed; batch size 16 fits natively in cloud VRAM
-  num_epochs: 8
-  warmup_steps: 100
+  num_epochs: 4        # Prevents synthetic text overfitting and finishes under 1 hour
+  warmup_steps: 500    # Ramps up the learning rate smoothly over the first 500 steps
   weight_decay: 0.01
   seed: 42
 
