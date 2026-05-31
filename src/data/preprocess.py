@@ -75,7 +75,7 @@ def preprocess_qa_dataset(input_path: str, output_path: str):
 
     print(f"Processed {len(cleaned)} records → {output_path}")
 
-def preprocess_wikipedia(input_path: str, output_path: str, max_articles=5000):
+def preprocess_wikipedia_for_kb(input_path: str, output_path: str, max_articles=5000):
     """Extract clean Gujarati paragraphs for knowledge base"""
     records = load_jsonl(input_path)
     docs = []
@@ -96,34 +96,63 @@ def preprocess_wikipedia(input_path: str, output_path: str, max_articles=5000):
 
     print(f"Processed {len(docs)} Wikipedia articles → {output_path}")
 
+def preprocess_sangraha_for_kb(input_path: str, output_path: str, max_articles: int = 5000):
+    """Add Sangraha articles to knowledge base"""
+    records = load_jsonl(input_path)
+    docs = []
+    for i, record in enumerate(records[:max_articles]):
+        text = clean_gujarati_text(record.get('text', ''))
+        if len(text) > 100:
+            docs.append({
+                "id": record.get("doc_id", f"sangraha_{i}"),
+                "title": record.get("doc_id", ""),
+                "text": text[:2000]
+            })
+
+    # Append to existing kb.jsonl (don't overwrite Wikipedia)
+    with open(output_path, 'a', encoding='utf-8') as f:
+        for doc in docs:
+            f.write(json.dumps(doc, ensure_ascii=False) + '\n')
+
+    print(f"Added {len(docs)} Sangraha articles → {output_path}")
+
+
 if __name__ == "__main__":
     preprocess_qa_dataset("data/raw/indicqa_gu_train.jsonl", "data/processed/train.jsonl")
     preprocess_qa_dataset("data/raw/indicqa_gu_val.jsonl", "data/processed/val.jsonl")
-    preprocess_wikipedia("data/raw/gu_wikipedia.jsonl", "data/knowledge_base/kb.jsonl")
+    preprocess_wikipedia_for_kb("data/raw/gu_wikipedia.jsonl", "data/knowledge_base/kb.jsonl", max_articles=5000)
+    preprocess_sangraha_for_kb("data/raw/sangraha_gu.jsonl", "data/knowledge_base/kb.jsonl", max_articles=5000)
 
-    # Merge synthetic data into training set (run only if file exists)
-    synthetic_path = "data/raw/synthetic_gu_qa.jsonl"
-    if os.path.exists(synthetic_path):
-        print("\nMerging synthetic QA data...")
-        preprocess_qa_dataset(synthetic_path, "data/processed/synthetic_train.jsonl")
-        
-        # Combine all training data
-        combined = []
-        for path in [
-            "data/processed/train.jsonl",
-            "data/processed/synthetic_train.jsonl"
-        ]:
-            if os.path.exists(path):
-                with open(path, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        combined.append(json.loads(line))
-        
-        # Shuffle for better training
-        random.seed(42)
-        random.shuffle(combined)
-        
-        with open("data/processed/train.jsonl", 'w', encoding='utf-8') as f:
-            for record in combined:
-                f.write(json.dumps(record, ensure_ascii=False) + '\n')
-        
-        print(f"Final training samples: {len(combined)}")
+    # Preprocess each optional source if it exists
+    optional_sources = {
+        "data/raw/indic_squad_gu.jsonl":  "data/processed/indic_squad_gu.jsonl",
+        "data/raw/synthetic_gu_qa.jsonl": "data/processed/synthetic_train.jsonl",
+    }
+    for raw_path, processed_path in optional_sources.items():
+        if os.path.exists(raw_path):
+            print(f"\nProcessing {raw_path}...")
+            preprocess_qa_dataset(raw_path, processed_path)
+
+    # Combine ALL processed sources into final train.jsonl
+    all_train_sources = [
+        "data/processed/train.jsonl",           # IndicQA
+        "data/processed/indic_squad_gu.jsonl", # IndicSQuAD
+        "data/processed/synthetic_train.jsonl",   # Synthetic
+    ]
+    combined = []
+    for path in all_train_sources:
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                records = [json.loads(line) for line in f]
+            combined.extend(records)
+            print(f"  Loaded {len(records)} from {path}")
+
+    random.seed(42)
+    random.shuffle(combined)
+
+    with open("data/processed/train.jsonl", 'w', encoding='utf-8') as f:
+        for record in combined:
+            f.write(json.dumps(record, ensure_ascii=False) + '\n')
+
+    print(f"\n\n\n\nFinal train.jsonl: {len(combined)} samples")
+    print(f"Val.jsonl stays as is: IndicQA native Gujarati only")
