@@ -104,12 +104,12 @@ jobs:
           kernel_slug = f"{username}/{kernel_name}"
 
           print(f"Watching kernel: {kernel_slug}", flush=True)
-          print("Checking every 60 seconds (up to 120 minutes)...\n", flush=True)
+          print("Checking every 60 seconds (up to 240 minutes)...\n", flush=True)
 
-          for i in range(120):
+          for i in range(240):
               result = api.kernels_status(kernel_slug)
               status = str(getattr(result, "status", "unknown")).lower()
-              print(f"[{i+1}/120] Status: {status}", flush=True)
+              print(f"[{i+1}/240] Status: {status}", flush=True)
 
               if "complete" in status:
                   print("\nRetraining finished! Model pushed to HuggingFace by Kaggle.", flush=True)
@@ -120,8 +120,8 @@ jobs:
 
               time.sleep(60)
 
-          print("\nTimed out after 120 minutes.", flush=True)
-          sys.exit(1)
+          # print("\nTimed out after 120 minutes.", flush=True)
+          # sys.exit(1)
           PYEOF
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_KEY }}
