@@ -1,3 +1,5 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # execution to a single clean GPU instance
 import torch
 import yaml
 import mlflow
@@ -10,8 +12,6 @@ from transformers import (
 )
 from datasets import load_dataset, Dataset
 import json
-import os
-
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -153,7 +153,7 @@ def train():
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
         fp16=True,                    # If True, Activates T4 Tensor Cores (speeds up training by 2x-3x)
-        gradient_checkpointing=True,  # If True, Drops VRAM footprint drastically to prevent Out-Of-Memory crashes
+        gradient_checkpointing=False,  # If True, Drops VRAM footprint drastically to prevent Out-Of-Memory crashes || If False, Eliminates thread deadlock errors entirely
         logging_dir="logs/training",
         report_to="none",  # We handle MLflow manually
         seed=params['training']['seed']
