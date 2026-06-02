@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 import time
 import random
 from pathlib import Path
@@ -9,8 +10,33 @@ import google.generativeai as genai
 load_dotenv()
 
 # Configure Gemini
-genai.configure(api_key=os.getenv("GEMINI_API_KEY_TEMP_7"))
-model = genai.GenerativeModel("gemini-3.5-flash")
+# genai.configure(api_key=os.getenv("GEMINI_API_KEY_TEMP_7"))
+# model = genai.GenerativeModel("gemini-2.5-flash-lite")
+
+# ── All API keys and models — auto-rotated on 429 ──
+API_KEYS = [v for v in [
+    os.getenv("GEMINI_API_KEY"),
+    os.getenv("GEMINI_API_KEY_TEMP_1"),
+    os.getenv("GEMINI_API_KEY_TEMP_2"),
+    os.getenv("GEMINI_API_KEY_TEMP_3"),
+    os.getenv("GEMINI_API_KEY_TEMP_4"),
+    os.getenv("GEMINI_API_KEY_TEMP_5"),
+    os.getenv("GEMINI_API_KEY_TEMP_6"),
+] if v]
+
+MODELS = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
+
+# Current state — rotated automatically
+current_key_idx   = 0
+current_model_idx = 0
+
+def get_model():
+    """Returns a fresh Gemini model using current key + model combo."""
+    genai.configure(api_key=API_KEYS[current_key_idx])
+    return genai.GenerativeModel(MODELS[current_model_idx])
+
+print(f"Loaded {len(API_KEYS)} API keys")
+print(f"Starting: {MODELS[current_model_idx]} | key[{current_key_idx}]\n")
 
 def load_wikipedia_articles(path: str, max_articles: int = 500) -> list:
     """Load Gujarati Wikipedia articles"""
@@ -30,10 +56,26 @@ def load_wikipedia_articles(path: str, max_articles: int = 500) -> list:
     print(f"Loaded {len(articles)} Wikipedia articles")
     return articles
 
+def load_sangraha_articles(path: str, max_articles: int = 500) -> list:
+    """Load Sangraha Gujarati articles"""
+    articles = []
+    with open(path, 'r', encoding='utf-8') as f:
+        for i, line in enumerate(f):
+            if i >= max_articles:
+                break
+            record = json.loads(line)
+            text = record.get('text', '').strip()
+            if len(text) > 200:
+                articles.append({
+                    'title': record.get('doc_id', f'sangraha_{i}'),
+                    'text': text[:1000]
+                })
+    print(f"Loaded {len(articles)} Sangraha articles")
+    return articles
 
 def generate_qa_pairs(article: dict, num_pairs: int = 3) -> list:
-    """Ask Gemini to generate QA pairs from a Gujarati article with auto-retry on 429 rate limits"""
-    
+    global current_key_idx, current_model_idx
+
     prompt = f"""You are a Gujarati QA dataset creator.
 
     Given this Gujarati text, generate exactly {num_pairs} question-answer pairs.
@@ -41,7 +83,7 @@ def generate_qa_pairs(article: dict, num_pairs: int = 3) -> list:
     STRICT RULES:
     1. Questions MUST be in Gujarati
     2. Answers MUST be exact substrings from the context (word-for-word copy)
-    3. Answers must be short (1-5 words)
+    3. Answers must be short (1-8 words)
     4. Return ONLY valid JSON, no explanation, no markdown
 
     Context:
@@ -52,43 +94,59 @@ def generate_qa_pairs(article: dict, num_pairs: int = 3) -> list:
     {{
         "question": "Gujarati question here?",
         "answer": "exact answer from context"
-    }},
-    {{
-        "question": "another Gujarati question?",
-        "answer": "exact answer from context"
     }}
     ]"""
 
-    max_retries = 5
-    for attempt in range(max_retries):
-        try:
-            response = model.generate_content(prompt)
-            text = response.text.strip()
-            
-            # Clean response — remove markdown if present
-            if text.startswith("```"):
-                text = text.split("```")[1]
-                if text.startswith("json"):
-                    text = text[4:]
-            text = text.strip()
-            
-            pairs = json.loads(text)
-            return pairs
-            
-        except Exception as e:
+    MAX_RETRIES_PER_MODEL = 4  # after 4 fails → switch model
+
+    while True:
+        retries_this_model = 0
+
+        while retries_this_model < MAX_RETRIES_PER_MODEL:
+            try:
+                model = get_model()
+                response = model.generate_content(prompt)
+                text = response.text.strip()
+
+                if text.startswith("```"):
+                    text = text.split("```")[1]
+                    if text.startswith("json"):
+                        text = text[4:]
+
+                return json.loads(text.strip())
+
+            except Exception as e:
                 error_msg = str(e)
-                # Check if the error is due to rate limiting/quota issues
+
                 if "429" in error_msg or "quota" in error_msg.lower():
-                    print(f"\n  ⚠️ Rate limit hit (429) on article: '{article['title'][:30]}'")
-                    print(f"  Waiting 60 seconds before retry (Attempt {attempt + 1}/{max_retries})...")
+                    retries_this_model += 1
+                    print(f"  ⚠️  429 on {MODELS[current_model_idx]} key[{current_key_idx}] "
+                          f"(attempt {retries_this_model}/{MAX_RETRIES_PER_MODEL}) — waiting 60s...")
                     time.sleep(60)
                 else:
-                    # If it's a structural or parsing error, log it and break to skip this specific article
-                    print(f"  Error generating QA: {e}")
+                    print(f"  ⚠️  Non-rate error: {e}")
                     return []
-                
-    print(f"Skipped article '{article['title'][:30]}' permanently after failing {max_retries} retries.")
-    return []
+
+        # ── This model's quota done → try next model ──
+        current_model_idx += 1
+
+        if current_model_idx < len(MODELS):
+            print(f"\n🔄 Model exhausted → switching to: {MODELS[current_model_idx]} (key[{current_key_idx}])")
+            continue
+
+        # ── All 3 models done → switch API key ──
+        current_model_idx = 0
+        current_key_idx += 1
+
+        if current_key_idx < len(API_KEYS):
+            print(f"\nAll models exhausted → switching to key[{current_key_idx}] | "
+                  f"model: {MODELS[current_model_idx]}")
+            continue
+
+        # ── All keys + all models exhausted → stop ──
+        print(f"\n⛔ All {len(API_KEYS)} keys × {len(MODELS)} models exhausted.")
+        print("Stopping. Run again tomorrow when quota resets.")
+        sys.exit(0)
 
 
 def find_answer_start(context: str, answer: str) -> int:
@@ -114,7 +172,8 @@ def build_squad_record(article: dict, qa: dict, idx: int) -> dict | None:
         return None
     
     return {
-        "id": f"synthetic_{idx:05d}",
+        # "id": f"synthetic_{idx:05d}", # if using wikipedia
+        "id": f"synthetic_sangraha_{idx:05d}", # if using sangraha
         "context": context,
         "question": question,
         "answers": {
@@ -125,9 +184,8 @@ def build_squad_record(article: dict, qa: dict, idx: int) -> dict | None:
 
 
 def generate_dataset(
-    wiki_path: str = "data/raw/gu_wikipedia.jsonl",
     output_path: str = "data/raw/synthetic_gu_qa.jsonl",
-    max_articles: int = 500,
+    max_articles: int = 1000,
     pairs_per_article: int = 3,
     sleep_between_requests: float = 4.5  # Stay under 15 RPM limit
 ):
@@ -135,13 +193,14 @@ def generate_dataset(
     Main generation function.
     
     Default settings (safe for free tier):
-    - 500 articles × 3 pairs = ~1500 QA pairs
+    - 1000 articles × 3 pairs = ~3000 QA pairs
     - 4.5 sec sleep = ~13 requests/min (under 15 RPM limit)
-    - Total time: ~30 minutes
-    - Daily quota used: 500/1500 requests
+    - Total time: ~60 minutes
+    - Daily quota used: 1000/3000 requests
     """
     
-    articles = load_wikipedia_articles(wiki_path, max_articles)
+    # articles = load_wikipedia_articles("data/raw/gu_wikipedia.jsonl", max_articles)   # Wikipedia
+    articles = load_sangraha_articles("data/raw/sangraha_gu.jsonl", max_articles)  # Sangraha
     
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     
