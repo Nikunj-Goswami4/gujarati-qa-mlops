@@ -21,7 +21,7 @@
 <br/>
 
 <div align="center">
-  <video src="https://raw.githubusercontent.com/Nikunj-Goswami4/gujarati-qa-mlops/main/assets/Demo.mp4" width="90%" autoplay loop muted controls style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);"></video>
+  <video src="https://github.com/user-attachments/assets/4c63184f-fc98-4650-922c-55e228bc1361" width="90%" autoplay loop muted controls style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);"></video>
   <p align="center">
     <sub><i>Quick walk-through of the live Gujarati QA Interface and MLOps Telemetry Dashboard.</i></sub>
   </p>
