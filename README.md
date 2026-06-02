@@ -18,7 +18,7 @@
 
 <!-- `psswd: admin123` -->
 
-<!-- <br/>
+<br/>
 
 <div align="center">
   <video src="assets/demo.mp4" width="90%" autoplay loop muted controls style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);"></video>
@@ -27,7 +27,7 @@
   </p>
 </div>
 
-<br/> -->
+<br/>
 
 ---
 
